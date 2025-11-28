@@ -1,8 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
 import './App.css'
 
 function App() {
+  // Generar un session_id único al cargar la app
+  const [sessionId] = useState(() => {
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  })
+
   // Estado del formulario inicial
   const [formularioCompletado, setFormularioCompletado] = useState(false)
   const [datosFormulario, setDatosFormulario] = useState({
@@ -15,6 +20,9 @@ function App() {
   // Estado para las preguntas libres
   const [pregunta, setPregunta] = useState('')
   const [respuesta, setRespuesta] = useState('')
+  const [fotos, setFotos] = useState([])
+  const [infoDestino, setInfoDestino] = useState(null)
+  const [historial, setHistorial] = useState([])
   const [cargando, setCargando] = useState(false)
 
   // Manejar el envío del formulario inicial
@@ -40,16 +48,31 @@ function App() {
 
     setCargando(true)
     setRespuesta('')
+    setFotos([])
+    setInfoDestino(null)
 
     try {
       const response = await axios.post('http://localhost:8000/api/planificar', {
         pregunta: pregunta,
-        contexto: datosFormulario
+        contexto: datosFormulario,
+        session_id: sessionId
       })
       setRespuesta(response.data.respuesta)
+      if (response.data.fotos && response.data.fotos.length > 0) {
+        setFotos(response.data.fotos)
+      }
+      if (response.data.info_destino) {
+        setInfoDestino(response.data.info_destino)
+      }
+      // Actualizar historial si viene en la respuesta
+      if (response.data.historial && response.data.historial.length > 0) {
+        setHistorial(response.data.historial)
+      }
     } catch (error) {
       console.error('Error:', error)
       setRespuesta('Lo siento, hubo un error al procesar tu solicitud. Por favor intenta de nuevo.')
+      setFotos([])
+      setInfoDestino(null)
     } finally {
       setCargando(false)
     }
@@ -85,6 +108,35 @@ function App() {
         )
       }
       
+      // Detectar secciones especiales con símbolos (», Þ, , ä, ø) seguido de nombre de sección
+      // Formato: "» ALOJAMIENTO:", "Þ COMIDA LOCAL:", " LUGARES IMPERDIBLES:", etc.
+      const specialSectionMatch = line.match(/^([»Þäø\s]?)\s*(ALOJAMIENTO|COMIDA LOCAL|LUGARES IMPERDIBLES|CONSEJOS LOCALES|ESTIMACIÓN DE COSTOS):\s*(.*)$/i)
+      if (specialSectionMatch) {
+        const symbol = specialSectionMatch[1]?.trim() || ''
+        const sectionName = specialSectionMatch[2]
+        const content = specialSectionMatch[3] || ''
+        
+        // Mapear nombres de sección a iconos
+        const sectionMap = {
+          'ALOJAMIENTO': '🏨',
+          'COMIDA LOCAL': '🍽️',
+          'LUGARES IMPERDIBLES': '🗺️',
+          'CONSEJOS LOCALES': '💡',
+          'ESTIMACIÓN DE COSTOS': '💰'
+        }
+        
+        const icon = sectionMap[sectionName.toUpperCase()] || '📍'
+        
+        return (
+          <div key={index} className="response-section-special">
+            {symbol && <span className="special-symbol">{symbol}</span>}
+            <span className="special-icon">{icon}</span>
+            <span className="special-text">{sectionName}:</span>
+            {content && <span className="special-content">{content}</span>}
+          </div>
+        )
+      }
+      
       // Detectar líneas con emojis al inicio (títulos o secciones)
       const emojiMatch = line.match(/^([🛫✈️🗺️🏨🌍💰🎯🍽️📅👥⏱️🛍️🌙🗼🎨🍷🎭🎪🎬🎮🏛️🎵🎸🎺🎻🎤🎧🎨🎬🎪🎭🎯🎲🎰🎨🎭🎪🎬🎮🏛️🎵🎸🎺🎻🎤🎧]+)\s+(.+)$/)
       if (emojiMatch && line.length < 100) {
@@ -112,6 +164,57 @@ function App() {
 
   return (
     <div className="app">
+      {infoDestino && (
+        <div className="info-panel">
+          <div className="info-panel-header">
+            <h3 className="info-panel-title">📊 Información del Destino</h3>
+          </div>
+          <div className="info-panel-content">
+            {infoDestino.temperatura !== null && (
+              <div className="info-item">
+                <div className="info-icon">🌡️</div>
+                <div className="info-details">
+                  <span className="info-label">Temperatura</span>
+                  <span className="info-value">
+                    {infoDestino.temperatura}°C
+                    {infoDestino.condicion && (
+                      <span className="info-subtext"> - {infoDestino.condicion}</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            {infoDestino.diferencia_horaria && (
+              <div className="info-item">
+                <div className="info-icon">🕐</div>
+                <div className="info-details">
+                  <span className="info-label">Zona Horaria</span>
+                  <span className="info-value">{infoDestino.diferencia_horaria}</span>
+                </div>
+              </div>
+            )}
+            
+            {infoDestino.codigo_moneda && (
+              <div className="info-item">
+                <div className="info-icon">💵</div>
+                <div className="info-details">
+                  <span className="info-label">Moneda</span>
+                  <span className="info-value">
+                    {infoDestino.moneda_local || infoDestino.codigo_moneda}
+                    {infoDestino.tipo_cambio_usd && (
+                      <span className="info-subtext">
+                        {' '}(1 {infoDestino.codigo_moneda} = ${infoDestino.tipo_cambio_usd.toFixed(4)} USD)
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
       <div className="container">
         <header className="header">
           <h1 className="title">ViajeIA - Tu Asistente Personal de Viajes</h1>
@@ -249,6 +352,28 @@ function App() {
                 <span className="response-icon">✈️</span>
                 <h2 className="response-title">ViajeIA responde:</h2>
               </div>
+              
+              {fotos && fotos.length > 0 && (
+                <div className="photos-gallery">
+                  <h3 className="photos-title">📸 Fotos del destino</h3>
+                  <div className="photos-grid">
+                    {fotos.map((foto, index) => (
+                      <div key={index} className="photo-item">
+                        <img 
+                          src={foto} 
+                          alt={`${datosFormulario.destino || 'Destino'} - Foto ${index + 1}`}
+                          className="destination-photo"
+                          loading="lazy"
+                          onError={(e) => {
+                            e.target.style.display = 'none'
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               <div className="response-content">
                 {formatResponse(respuesta)}
               </div>
@@ -259,6 +384,26 @@ function App() {
             <div className="loading">
               <div className="spinner"></div>
               <p>Procesando tu solicitud...</p>
+            </div>
+          )}
+
+          {historial.length > 0 && (
+            <div className="historial-section">
+              <h3 className="historial-title">💬 Historial de Conversación</h3>
+              <div className="historial-list">
+                {historial.map((mensaje, index) => (
+                  <div key={index} className="historial-item">
+                    <div className="historial-pregunta">
+                      <span className="historial-label">Tú:</span>
+                      <span className="historial-text">{mensaje.pregunta}</span>
+                    </div>
+                    <div className="historial-respuesta">
+                      <span className="historial-label">ViajeIA:</span>
+                      <span className="historial-text">{mensaje.respuesta.substring(0, 150)}...</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </main>

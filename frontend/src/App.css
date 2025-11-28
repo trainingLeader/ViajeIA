@@ -17,8 +17,10 @@ body {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   padding: 20px;
+  gap: 20px;
+  position: relative;
 }
 
 .container {
@@ -29,6 +31,106 @@ body {
   max-width: 800px;
   padding: 40px;
   animation: fadeIn 0.5s ease-in;
+  flex-shrink: 0;
+}
+
+/* Panel lateral de información */
+.info-panel {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 320px;
+  max-height: 90vh;
+  padding: 25px;
+  animation: slideInFromLeft 0.5s ease-out;
+  position: sticky;
+  top: 20px;
+  overflow-y: auto;
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.info-panel-header {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.info-panel-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.info-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  padding: 15px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  border-left: 4px solid #667eea;
+  transition: all 0.3s ease;
+}
+
+.info-item:hover {
+  transform: translateX(5px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.info-icon {
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.info-details {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+
+.info-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  line-height: 1.4;
+}
+
+.info-subtext {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: #7f8c8d;
+  display: block;
+  margin-top: 4px;
 }
 
 @keyframes fadeIn {
@@ -197,6 +299,43 @@ body {
   flex: 1;
 }
 
+.response-section-special {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 25px 0 15px 0;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border-radius: 10px;
+  border-left: 4px solid #667eea;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: #2c3e50;
+}
+
+.special-symbol {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #667eea;
+}
+
+.special-icon {
+  font-size: 1.4rem;
+}
+
+.special-text {
+  flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.special-content {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  margin-left: 8px;
+}
+
 .list-item {
   display: flex;
   align-items: flex-start;
@@ -227,6 +366,56 @@ body {
   flex: 1;
   color: #34495e;
   line-height: 1.6;
+}
+
+/* Estilos para la galería de fotos */
+.photos-gallery {
+  margin: 25px 0;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.photos-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.photo-item {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  aspect-ratio: 4 / 3;
+  background: #f0f0f0;
+}
+
+.photo-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+}
+
+.destination-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.photo-item:hover .destination-photo {
+  transform: scale(1.05);
 }
 
 .loading {
@@ -384,6 +573,20 @@ body {
 }
 
 @media (max-width: 768px) {
+  .app {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .info-panel {
+    width: 100%;
+    max-width: 800px;
+    position: relative;
+    top: 0;
+    margin-bottom: 20px;
+    order: -1;
+  }
+
   .container {
     padding: 25px;
   }
@@ -416,6 +619,110 @@ body {
   .context-badge span {
     width: 100%;
     text-align: center;
+  }
+
+  .photos-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .photos-gallery {
+    padding: 15px;
+  }
+}
+
+/* Estilos para el historial de conversaciones */
+.historial-section {
+  margin-top: 30px;
+  padding: 25px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  border-left: 5px solid #667eea;
+}
+
+.historial-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.historial-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.historial-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.historial-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.historial-list::-webkit-scrollbar-thumb {
+  background: #667eea;
+  border-radius: 10px;
+}
+
+.historial-item {
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease;
+}
+
+.historial-item:hover {
+  transform: translateX(5px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.historial-pregunta,
+.historial-respuesta {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.historial-pregunta:last-child,
+.historial-respuesta:last-child {
+  margin-bottom: 0;
+}
+
+.historial-label {
+  font-weight: 600;
+  color: #667eea;
+  min-width: 60px;
+  font-size: 0.9rem;
+}
+
+.historial-text {
+  flex: 1;
+  color: #34495e;
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .historial-section {
+    padding: 20px;
+  }
+
+  .historial-label {
+    min-width: 50px;
+    font-size: 0.85rem;
+  }
+
+  .historial-text {
+    font-size: 0.9rem;
   }
 }
 
