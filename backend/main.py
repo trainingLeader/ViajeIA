@@ -28,8 +28,15 @@ app.add_middleware(
 )
 
 
+class ContextoFormulario(BaseModel):
+    destino: Optional[str] = None
+    fecha: Optional[str] = None
+    presupuesto: Optional[str] = None
+    preferencia: Optional[str] = None
+
 class PreguntaRequest(BaseModel):
     pregunta: str
+    contexto: Optional[ContextoFormulario] = None
 
 
 class RespuestaResponse(BaseModel):
@@ -48,9 +55,10 @@ async def planificar_viaje(request: PreguntaRequest):
     """
     try:
         pregunta = request.pregunta
+        contexto = request.contexto
         
         # Llamar a ChatGPT para obtener la respuesta
-        respuesta = generar_respuesta_con_chatgpt(pregunta)
+        respuesta = generar_respuesta_con_chatgpt(pregunta, contexto)
         
         return RespuestaResponse(respuesta=respuesta)
     
@@ -61,16 +69,64 @@ async def planificar_viaje(request: PreguntaRequest):
         )
 
 
-def generar_respuesta_con_chatgpt(pregunta: str) -> str:
+def generar_respuesta_con_chatgpt(pregunta: str, contexto: Optional[ContextoFormulario] = None) -> str:
     """
-    Función simple para generar respuestas usando ChatGPT de OpenAI.
+    Función para generar respuestas especializadas usando ChatGPT con personalidad de experto en viajes.
     """
     try:
-        # Crear el mensaje del sistema que define el rol del asistente
-        system_message = """Eres un asistente experto en viajes llamado ViajeIA. 
-        Ayudas a las personas a planificar sus viajes proporcionando consejos útiles, 
-        recomendaciones y información práctica sobre destinos, alojamientos, vuelos, 
-        itinerarios y presupuestos. Responde siempre en español de manera amigable y profesional."""
+        # Construir el contexto del usuario si está disponible
+        contexto_usuario = ""
+        if contexto:
+            contexto_usuario = f"""
+        
+        INFORMACIÓN DEL VIAJERO:
+        - Destino: {contexto.destino}
+        - Fecha del viaje: {contexto.fecha}
+        - Presupuesto: {contexto.presupuesto}
+        - Preferencia de viaje: {contexto.preferencia}
+        
+        IMPORTANTE: Usa esta información en todas tus respuestas para personalizar las recomendaciones. 
+        Cuando el usuario haga preguntas, siempre ten en cuenta estos detalles sobre su viaje."""
+        
+        # Crear el mensaje del sistema que define el rol y personalidad del asistente
+        system_message = """Eres ViajeIA, un asistente virtual experto en viajes con más de 15 años de experiencia 
+        ayudando a viajeros a crear experiencias inolvidables. Tienes una personalidad entusiasta, amigable y 
+        apasionada por los viajes.
+
+        CARACTERÍSTICAS DE TU PERSONALIDAD:
+        - Eres entusiasta y positivo sobre los viajes
+        - Haces preguntas inteligentes para entender mejor las necesidades del viajero
+        - Compartes consejos prácticos basados en experiencia real
+        - Usas un tono conversacional pero profesional
+        - Te emocionas cuando alguien planea un viaje especial
+
+        ESPECIALIZACIÓN:
+        - Planificación de itinerarios detallados día por día
+        - Recomendaciones de destinos según presupuesto, intereses y temporada
+        - Consejos para encontrar vuelos, hoteles y transporte
+        - Tips de viajero experimentado (qué llevar, qué evitar, cómo ahorrar)
+        - Recomendaciones gastronómicas y culturales
+        - Planificación de presupuestos realistas
+
+        ESTILO DE RESPUESTAS:
+        - Usa formato estructurado con listas numeradas cuando sea apropiado
+        - Haz preguntas de seguimiento relevantes para personalizar las recomendaciones
+        - Incluye detalles específicos y prácticos
+        - Usa emojis ocasionalmente para hacer la conversación más amigable (✈️ 🗺️ 🏨 🌍)
+        - Responde siempre en español
+
+        EJEMPLO DE INTERACCIÓN:
+        Usuario: "Quiero viajar a París"
+        Tú: "¡Excelente elección! París es una ciudad mágica. Para ayudarte mejor, necesito saber:
+        
+        🗓️ ¿Cuándo planeas viajar? (esto afecta precios y clima)
+        👥 ¿Cuántas personas viajan?
+        💰 ¿Cuál es tu presupuesto aproximado?
+        ⏱️ ¿Cuántos días estarás en París?
+        🎯 ¿Qué te interesa más? (museos, gastronomía, compras, vida nocturna, etc.)
+        
+        Con esta información, puedo crear un itinerario perfecto para ti. ¿Qué te gustaría hacer primero?"
+        """ + contexto_usuario
         
         # Llamar a la API de OpenAI
         response = client.chat.completions.create(
@@ -79,8 +135,8 @@ def generar_respuesta_con_chatgpt(pregunta: str) -> str:
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": pregunta}
             ],
-            max_tokens=500,
-            temperature=0.7
+            max_tokens=800,  # Aumentado para respuestas más detalladas
+            temperature=0.8  # Aumentado para respuestas más creativas y con personalidad
         )
         
         # Extraer la respuesta generada
@@ -88,6 +144,6 @@ def generar_respuesta_con_chatgpt(pregunta: str) -> str:
         return respuesta
     
     except Exception as e:
-        # Si hay un error, devolver un mensaje amigable
-        return f"Lo siento, hubo un problema al comunicarse con ChatGPT. Por favor intenta de nuevo. Error: {str(e)}"
+        # Si hay un error, devolver un mensaje amigable con personalidad
+        return f"¡Ups! 😅 Hubo un pequeño problema técnico mientras procesaba tu solicitud. Por favor, intenta de nuevo en un momento. Si el problema persiste, verifica tu conexión a internet. Error: {str(e)}"
 

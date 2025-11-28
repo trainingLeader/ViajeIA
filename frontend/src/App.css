@@ -133,6 +133,20 @@ body {
   padding: 25px;
   border-left: 5px solid #667eea;
   animation: slideIn 0.4s ease-out;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
+}
+
+.response-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+}
+
+.response-icon {
+  font-size: 1.5rem;
 }
 
 @keyframes slideIn {
@@ -157,8 +171,62 @@ body {
   color: #34495e;
   font-size: 1rem;
   line-height: 1.8;
-  white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+.response-paragraph {
+  margin-bottom: 12px;
+  color: #34495e;
+}
+
+.response-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 12px 0;
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #2c3e50;
+}
+
+.section-emoji {
+  font-size: 1.3rem;
+}
+
+.section-text {
+  flex: 1;
+}
+
+.list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding-left: 8px;
+}
+
+.list-item.numbered {
+  align-items: baseline;
+}
+
+.list-number {
+  font-weight: 600;
+  color: #667eea;
+  min-width: 24px;
+  font-size: 1rem;
+}
+
+.bullet-point {
+  color: #667eea;
+  font-weight: bold;
+  font-size: 1.2rem;
+  min-width: 20px;
+}
+
+.list-content {
+  flex: 1;
+  color: #34495e;
+  line-height: 1.6;
 }
 
 .loading {
@@ -189,6 +257,132 @@ body {
   font-size: 1rem;
 }
 
+/* Estilos del formulario de encuesta */
+.survey-form {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.survey-intro {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.survey-text {
+  color: #34495e;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.survey-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.survey-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.label-icon {
+  font-size: 1.3rem;
+}
+
+.survey-input {
+  width: 100%;
+  padding: 14px 18px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.survey-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.survey-input[type="date"] {
+  cursor: pointer;
+}
+
+.survey-input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.survey-input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+.survey-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.survey-option {
+  padding: 16px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  background: white;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #34495e;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.survey-option:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.survey-option.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.form-context {
+  margin-bottom: 15px;
+}
+
+.context-badge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  border-radius: 10px;
+  border-left: 3px solid #667eea;
+}
+
+.context-badge span {
+  padding: 6px 12px;
+  background: white;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #2c3e50;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 25px;
@@ -205,6 +399,23 @@ body {
   .button {
     font-size: 1rem;
     padding: 14px 28px;
+  }
+
+  .survey-options {
+    grid-template-columns: 1fr;
+  }
+
+  .survey-option {
+    width: 100%;
+  }
+
+  .context-badge {
+    flex-direction: column;
+  }
+
+  .context-badge span {
+    width: 100%;
+    text-align: center;
   }
 }
 
