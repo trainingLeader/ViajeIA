@@ -1,0 +1,94 @@
+{
+  "rules": {
+    "usuarios": {
+      "$userId": {
+        // Solo el usuario autenticado puede leer/escribir sus propios datos
+        ".read": "$userId === auth.uid",
+        ".write": "$userId === auth.uid",
+        
+        // Validar que el email coincida con el usuario autenticado
+        "email": {
+          ".validate": "newData.isString() && newData.val() === auth.token.email && newData.val().length <= 254"
+        },
+        
+        // Validar formato del nombre
+        "nombre": {
+          ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 50 && newData.val().matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\\s'-]+$/)"
+        },
+        
+        // Validar fecha de registro
+        "fechaRegistro": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        }
+      }
+    },
+    "consultas": {
+      "$userId": {
+        // Solo el usuario puede ver sus propias consultas
+        ".read": "$userId === auth.uid",
+        ".write": "$userId === auth.uid",
+        
+        "$consultaId": {
+          // Validar que la consulta pertenezca al usuario
+          "usuarioId": {
+            ".validate": "newData.isString() && newData.val() === auth.uid"
+          },
+          
+          "usuarioEmail": {
+            ".validate": "newData.isString() && newData.val() === auth.token.email"
+          },
+          
+          // Validar longitud de la pregunta
+          "pregunta": {
+            ".validate": "newData.isString() && newData.val().length >= 5 && newData.val().length <= 1000"
+          },
+          
+          // Validar destino (opcional)
+          "destino": {
+            ".validate": "!newData.exists() || (newData.isString() && newData.val().length >= 2 && newData.val().length <= 100)"
+          },
+          
+          // Validar fecha de consulta
+          "fechaConsulta": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          
+          // Validar presupuesto (opcional, debe ser número positivo)
+          "presupuesto": {
+            ".validate": "!newData.exists() || (newData.isString() && newData.val().matches(/^[0-9]+(\\.[0-9]+)?$/))"
+          },
+          
+          // Validar preferencias (opcional, debe ser array)
+          "preferencias": {
+            ".validate": "!newData.exists() || newData.isString()"
+          }
+        }
+      }
+    },
+    "rateLimiting": {
+      "$userId": {
+        // Solo el usuario puede ver sus propios límites
+        ".read": "$userId === auth.uid",
+        ".write": "$userId === auth.uid",
+        "consultas": {
+          // Validar estructura de consultas
+          "$consultaId": {
+            "timestamp": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            },
+            "fecha": {
+              ".validate": "newData.isString()"
+            }
+          }
+        },
+        "estadisticas": {
+          // Estadísticas por fecha
+          "$fecha": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          }
+        }
+      }
+    }
+  }
+}
+

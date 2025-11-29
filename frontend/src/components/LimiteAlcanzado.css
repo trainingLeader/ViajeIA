@@ -1,0 +1,131 @@
+/* Estilos para el componente de límite alcanzado */
+
+.limite-alcanzado {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.limite-alcanzado-contenido {
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+  text-align: center;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.limite-alcanzado-icono {
+  font-size: 4rem;
+  margin-bottom: 15px;
+}
+
+.limite-alcanzado-titulo {
+  color: #2c3e50;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 15px;
+}
+
+.limite-alcanzado-mensaje {
+  color: #666;
+  font-size: 1rem;
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.limite-alcanzado-tiempo {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 1.1rem;
+}
+
+.limite-alcanzado-info {
+  background: #f5f7fa;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.limite-alcanzado-info p {
+  color: #2c3e50;
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+}
+
+.limite-alcanzado-info ul {
+  color: #666;
+  margin-left: 20px;
+  margin-top: 10px;
+}
+
+.limite-alcanzado-info li {
+  margin-bottom: 5px;
+  font-size: 0.9rem;
+}
+
+.limite-alcanzado-boton {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.limite-alcanzado-boton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+@media (max-width: 768px) {
+  .limite-alcanzado-contenido {
+    padding: 20px;
+  }
+
+  .limite-alcanzado-titulo {
+    font-size: 1.2rem;
+  }
+
+  .limite-alcanzado-icono {
+    font-size: 3rem;
+  }
+}
+

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException  # pyright: ignore[reportMissingImports]
+from fastapi import FastAPI, HTTPException, Request  # pyright: ignore[reportMissingImports]
 from fastapi.middleware.cors import CORSMiddleware  # pyright: ignore[reportMissingImports]
 from pydantic import BaseModel  # pyright: ignore[reportMissingImports]
 from typing import Optional, Tuple
@@ -7,11 +7,29 @@ import requests  # pyright: ignore[reportMissingImports]
 from datetime import datetime, timezone, timedelta
 from openai import OpenAI  # pyright: ignore[reportMissingImports]
 from dotenv import load_dotenv  # pyright: ignore[reportMissingImports]
+from stats import registrar_consulta, obtener_estadisticas
+from security import validar_pregunta, sanitizar_texto
+from rate_limiter import setup_rate_limiter, rate_limit_planificar, rate_limit_estadisticas
+from logger_config import logger
+from prompt_filter import validar_prompt, sanitizar_prompt
+from openai_config import (
+    obtener_configuracion_openai,
+    limitar_historial_por_tokens,
+    validar_configuracion,
+    estimar_tokens_mensajes,
+    estimar_tokens
+)
 
 # Cargar variables de entorno desde el archivo .env
 load_dotenv()
 
 app = FastAPI(title="ViajeIA API", version="1.0.0")
+
+# Configurar rate limiting
+setup_rate_limiter(app)
+
+# Configurar logging
+logger.info("Iniciando ViajeIA API")
 
 # Inicializar el cliente de OpenAI
 openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -68,14 +86,54 @@ async def root():
     return {"message": "ViajeIA API está funcionando"}
 
 
+@app.get("/api/estadisticas")
+@rate_limit_estadisticas()
+async def obtener_estadisticas_endpoint(request: Request):
+    """
+    Endpoint para obtener estadísticas de uso de ViajeIA
+    """
+    try:
+        logger.info("Solicitud de estadísticas recibida")
+        stats = obtener_estadisticas()
+        return stats
+    except Exception as e:
+        # Log el error completo
+        logger.error(f"Error al obtener estadísticas: {str(e)}", exc_info=True)
+        
+        # Mensaje genérico al usuario
+        raise HTTPException(
+            status_code=500,
+            detail="Error al obtener estadísticas. Por favor intenta más tarde."
+        )
+
+
 @app.post("/api/planificar", response_model=RespuestaResponse)
-async def planificar_viaje(request: PreguntaRequest):
+@rate_limit_planificar()
+async def planificar_viaje(request: Request, pregunta_request: PreguntaRequest):
     """
     Endpoint para procesar preguntas sobre planificación de viajes usando ChatGPT
     """
     try:
-        pregunta = request.pregunta
-        contexto = request.contexto
+        # Validar formato básico de la pregunta
+        es_valida, error_msg, pregunta_sanitizada = validar_pregunta(pregunta_request.pregunta)
+        if not es_valida:
+            logger.warning(f"Pregunta inválida rechazada (formato): {error_msg}")
+            raise HTTPException(status_code=400, detail=error_msg)
+        
+        # Validar que el prompt sea seguro y sobre viajes
+        es_seguro, error_seguridad, palabras_peligrosas = validar_prompt(pregunta_sanitizada)
+        if not es_seguro:
+            logger.warning(
+                f"Prompt peligroso o fuera de contexto rechazado: {error_seguridad}. "
+                f"Palabras detectadas: {palabras_peligrosas if palabras_peligrosas else 'N/A'}"
+            )
+            raise HTTPException(status_code=400, detail=error_seguridad)
+        
+        # Sanitizar adicionalmente el prompt
+        pregunta = sanitizar_prompt(pregunta_sanitizada)
+        contexto = pregunta_request.contexto
+        
+        logger.info(f"Nueva consulta recibida (validada): {pregunta[:50]}...")
         
         # Obtener el destino (del contexto del formulario o intentar extraerlo de la pregunta)
         destino = None
@@ -85,6 +143,17 @@ async def planificar_viaje(request: PreguntaRequest):
             # Intentar extraer el destino de la pregunta (básico)
             # Esto se puede mejorar con NLP más sofisticado
             destino = extraer_destino_de_pregunta(pregunta)
+        
+        # Registrar consulta en estadísticas (sin bloquear la respuesta)
+        try:
+            registrar_consulta(
+                usuario_id=None,  # Se generará automáticamente
+                destino=destino,
+                pregunta=pregunta
+            )
+        except Exception as e:
+            # No fallar si hay error en estadísticas
+            print(f"Error al registrar estadísticas: {e}")
         
         # Obtener información del clima si hay un destino
         info_clima = None
@@ -106,10 +175,17 @@ async def planificar_viaje(request: PreguntaRequest):
         
         return RespuestaResponse(respuesta=respuesta, fotos=fotos, info_destino=info_destino)
     
+    except HTTPException:
+        # Re-lanzar HTTPException sin modificar
+        raise
     except Exception as e:
+        # Log el error completo (solo en servidor)
+        logger.error(f"Error al procesar consulta: {str(e)}", exc_info=True)
+        
+        # Mensaje genérico al usuario (no revelar detalles del error)
         raise HTTPException(
             status_code=500, 
-            detail=f"Error al procesar la solicitud: {str(e)}"
+            detail="Error al procesar tu solicitud. Por favor intenta más tarde."
         )
 
 
@@ -520,14 +596,54 @@ def generar_respuesta_con_chatgpt(pregunta: str, contexto: Optional[ContextoForm
         - Si hay información del clima actual, inclúyela naturalmente en tus respuestas, especialmente en los consejos locales
         """ + contexto_usuario + info_clima_str
         
+        # Construir lista de mensajes
+        mensajes = [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": pregunta}
+        ]
+        
+        # Si hay historial, agregarlo antes del último mensaje del usuario
+        if historial and len(historial) > 0:
+            # Limitar historial para que no exceda los límites de tokens
+            historial_limitado = limitar_historial_por_tokens(
+                mensajes=historial + mensajes,
+                modelo=modelo_usar,
+                max_tokens_respuesta=max_tokens_usar,
+                reservar_tokens_sistema=estimar_tokens_mensajes([{"role": "system", "content": system_message}]) + 100
+            )
+            
+            # Si el historial limitado no incluye nuestro último mensaje del usuario, agregarlo
+            ultimo_mensaje = mensajes[-1]
+            historial_sin_system = [m for m in historial_limitado if m.get("role") != "system"]
+            
+            if not historial_sin_system or historial_sin_system[-1].get("content") != ultimo_mensaje.get("content"):
+                # Agregar el último mensaje del usuario si no está ya incluido
+                historial_limitado.append(ultimo_mensaje)
+            
+            mensajes = historial_limitado
+            
+            logger.info(
+                f"Historial limitado: {len(historial)} mensajes originales -> "
+                f"{len(mensajes)} mensajes después del límite. "
+                f"Tokens estimados: ~{estimar_tokens_mensajes(mensajes)}"
+            )
+        
+        # Validar configuración antes de hacer la llamada
+        es_valido, error_validacion = validar_configuracion(
+            modelo=modelo_usar,
+            max_tokens=max_tokens_usar,
+            historial=mensajes
+        )
+        
+        if not es_valido:
+            logger.error(f"Configuración inválida: {error_validacion}")
+            raise ValueError(f"Error en configuración: {error_validacion}")
+        
         # Llamar a la API de OpenAI
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": pregunta}
-            ],
-            max_tokens=1000,  # Aumentado para respuestas estructuradas y detalladas
+            model=modelo_usar,
+            messages=mensajes,
+            max_tokens=max_tokens_usar,
             temperature=0.8  # Aumentado para respuestas más creativas y con personalidad
         )
         
@@ -538,4 +654,3 @@ def generar_respuesta_con_chatgpt(pregunta: str, contexto: Optional[ContextoForm
     except Exception as e:
         # Si hay un error, devolver un mensaje amigable con personalidad
         return f"¡Ups! 😅 Hubo un pequeño problema técnico mientras procesaba tu solicitud. Por favor, intenta de nuevo en un momento. Si el problema persiste, verifica tu conexión a internet. Error: {str(e)}"
-

@@ -1,0 +1,215 @@
+/* Estilos para la política de privacidad */
+
+.politica-privacidad-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  padding: 20px;
+  overflow-y: auto;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.politica-privacidad-modal {
+  background: white;
+  border-radius: 20px;
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.politica-privacidad-header {
+  padding: 30px;
+  border-bottom: 3px solid #667eea;
+  text-align: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 20px 20px 0 0;
+}
+
+.politica-privacidad-header h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.politica-privacidad-contenido {
+  padding: 30px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.politica-seccion {
+  margin-bottom: 25px;
+}
+
+.politica-seccion:last-of-type {
+  margin-bottom: 0;
+}
+
+.politica-seccion h3 {
+  color: #2c3e50;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.politica-seccion p {
+  color: #34495e;
+  line-height: 1.8;
+  margin-bottom: 10px;
+}
+
+.politica-seccion ul {
+  margin-left: 20px;
+  margin-top: 10px;
+}
+
+.politica-seccion li {
+  color: #34495e;
+  line-height: 1.8;
+  margin-bottom: 8px;
+}
+
+.politica-seccion strong {
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.politica-fecha {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 2px solid #e0e0e0;
+  text-align: center;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.politica-privacidad-footer {
+  padding: 25px 30px;
+  border-top: 3px solid #667eea;
+  background: #f8f9fa;
+  border-radius: 0 0 20px 20px;
+}
+
+.politica-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+  cursor: pointer;
+  color: #2c3e50;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.politica-checkbox {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.politica-checkbox:checked {
+  accent-color: #667eea;
+}
+
+.politica-botones {
+  display: flex;
+  gap: 15px;
+  justify-content: flex-end;
+}
+
+.politica-boton {
+  padding: 12px 30px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.politica-boton-aceptar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.politica-boton-aceptar:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.politica-boton-aceptar:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.politica-boton-rechazar {
+  background: white;
+  color: #666;
+  border: 2px solid #e0e0e0;
+}
+
+.politica-boton-rechazar:hover {
+  background: #f5f5f5;
+  border-color: #ccc;
+}
+
+@media (max-width: 768px) {
+  .politica-privacidad-modal {
+    max-height: 95vh;
+  }
+
+  .politica-privacidad-header h2 {
+    font-size: 1.4rem;
+  }
+
+  .politica-privacidad-contenido {
+    padding: 20px;
+  }
+
+  .politica-botones {
+    flex-direction: column;
+  }
+
+  .politica-boton {
+    width: 100%;
+  }
+}
+
