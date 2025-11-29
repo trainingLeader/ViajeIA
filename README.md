@@ -124,11 +124,27 @@ La aplicación utiliza un diseño moderno con:
 3. El backend se conecta a OpenAI (ChatGPT) para generar una respuesta inteligente
 4. La respuesta se devuelve al frontend y se muestra al usuario
 
+## 🌐 Desplegar en Producción (Internet)
+
+¿Quieres que tu aplicación esté disponible para todos en internet? ¡Es gratis y fácil!
+
+📖 **Lee la [Guía Completa de Despliegue](./GUIA_DESPLIEGUE.md)** para aprender cómo:
+- Desplegar el frontend en **Vercel** (gratis)
+- Desplegar el backend en **Render** (gratis)
+- Configurar variables de entorno
+- Solucionar problemas comunes
+
+En resumen:
+1. Sube tu código a GitHub
+2. Conecta el repositorio a Vercel (frontend)
+3. Conecta el repositorio a Render (backend)
+4. Configura las variables de entorno
+5. ¡Tu app estará en línea! 🚀
+
 ## 📝 Próximos Pasos
 
+- ✅ Guardado de itinerarios favoritos (implementado)
 - Integración con APIs de viajes (vuelos, hoteles)
-- Sistema de historial de conversaciones
 - Autenticación de usuarios
-- Guardado de itinerarios favoritos
 - Selección de diferentes modelos de IA
 

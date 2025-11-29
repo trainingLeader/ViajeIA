@@ -1,0 +1,21 @@
+# Archivo de configuración para Render
+# Este archivo simplifica el despliegue del backend en Render
+
+services:
+  - type: web
+    name: viajeia-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false  # Debes configurar esto manualmente en Render
+      - key: OPENWEATHER_API_KEY
+        sync: false  # Opcional
+      - key: UNSPLASH_API_KEY
+        sync: false  # Opcional
+      - key: ALLOWED_ORIGINS
+        sync: false  # Actualiza después de desplegar el frontend
+

@@ -11,11 +11,6 @@ from dotenv import load_dotenv  # pyright: ignore[reportMissingImports]
 # Cargar variables de entorno desde el archivo .env
 load_dotenv()
 
-# Almacenamiento en memoria del historial de conversaciones por sesión
-# En producción, esto debería ser una base de datos
-conversaciones_historial: dict[str, list[dict]] = {}
-ultimo_destino_por_sesion: dict[str, str] = {}
-
 app = FastAPI(title="ViajeIA API", version="1.0.0")
 
 # Inicializar el cliente de OpenAI
@@ -32,9 +27,11 @@ openweather_api_key = os.getenv("OPENWEATHER_API_KEY")
 unsplash_api_key = os.getenv("UNSPLASH_API_KEY")
 
 # Configurar CORS para permitir peticiones del frontend
+# En producción, permitir el origen del frontend desplegado
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,7 +47,6 @@ class ContextoFormulario(BaseModel):
 class PreguntaRequest(BaseModel):
     pregunta: str
     contexto: Optional[ContextoFormulario] = None
-    session_id: Optional[str] = None
 
 
 class InfoDestino(BaseModel):
@@ -61,16 +57,10 @@ class InfoDestino(BaseModel):
     tipo_cambio_usd: Optional[float] = None
     codigo_moneda: Optional[str] = None
 
-class MensajeHistorial(BaseModel):
-    pregunta: str
-    respuesta: str
-    timestamp: str
-
 class RespuestaResponse(BaseModel):
     respuesta: str
     fotos: Optional[list[str]] = None
     info_destino: Optional[InfoDestino] = None
-    historial: Optional[list[MensajeHistorial]] = None
 
 
 @app.get("/")
@@ -86,33 +76,15 @@ async def planificar_viaje(request: PreguntaRequest):
     try:
         pregunta = request.pregunta
         contexto = request.contexto
-        session_id = request.session_id or "default"
         
-        # Obtener historial de conversaciones anteriores para esta sesión
-        historial_anterior = conversaciones_historial.get(session_id, [])
-        
-        # Obtener el destino (del contexto del formulario, historial o intentar extraerlo de la pregunta)
+        # Obtener el destino (del contexto del formulario o intentar extraerlo de la pregunta)
         destino = None
         if contexto and contexto.destino:
             destino = contexto.destino
-            # Guardar el destino en el historial de la sesión
-            ultimo_destino_por_sesion[session_id] = destino
         else:
-            # Primero intentar usar el último destino mencionado en esta sesión
-            destino = ultimo_destino_por_sesion.get(session_id)
-            if not destino:
-                # Intentar extraer el destino de la pregunta (básico)
-                destino = extraer_destino_de_pregunta(pregunta)
-                if destino:
-                    ultimo_destino_por_sesion[session_id] = destino
-        
-        # Si hay un destino del historial pero no en la pregunta actual, agregarlo al contexto para ChatGPT
-        pregunta_con_contexto = pregunta
-        if destino and destino not in pregunta.lower():
-            # Si la pregunta parece referirse a un destino anterior (usa palabras como "allí", "ahí", "ese lugar")
-            referencias_destino = ["allí", "ahí", "ese lugar", "ese destino", "ese sitio", "allá", "esa ciudad"]
-            if any(ref in pregunta.lower() for ref in referencias_destino):
-                pregunta_con_contexto = f"El usuario pregunta sobre {destino}: {pregunta}"
+            # Intentar extraer el destino de la pregunta (básico)
+            # Esto se puede mejorar con NLP más sofisticado
+            destino = extraer_destino_de_pregunta(pregunta)
         
         # Obtener información del clima si hay un destino
         info_clima = None
@@ -129,35 +101,10 @@ async def planificar_viaje(request: PreguntaRequest):
         if destino:
             info_destino = obtener_info_destino(destino, info_clima)
         
-        # Llamar a ChatGPT para obtener la respuesta (incluyendo historial)
-        respuesta = generar_respuesta_con_chatgpt(
-            pregunta_con_contexto, 
-            contexto, 
-            info_clima, 
-            historial_anterior,
-            destino
-        )
+        # Llamar a ChatGPT para obtener la respuesta
+        respuesta = generar_respuesta_con_chatgpt(pregunta, contexto, info_clima)
         
-        # Guardar en el historial
-        mensaje_historial = {
-            "pregunta": pregunta,
-            "respuesta": respuesta,
-            "timestamp": datetime.now().isoformat()
-        }
-        historial_anterior.append(mensaje_historial)
-        conversaciones_historial[session_id] = historial_anterior
-        
-        # Preparar historial para enviar al frontend (últimos 10 mensajes)
-        historial_respuesta = [
-            MensajeHistorial(**msg) for msg in historial_anterior[-10:]
-        ]
-        
-        return RespuestaResponse(
-            respuesta=respuesta, 
-            fotos=fotos, 
-            info_destino=info_destino,
-            historial=historial_respuesta
-        )
+        return RespuestaResponse(respuesta=respuesta, fotos=fotos, info_destino=info_destino)
     
     except Exception as e:
         raise HTTPException(
@@ -495,20 +442,11 @@ def obtener_clima_actual(ciudad: str) -> Optional[dict]:
         return None
 
 
-def generar_respuesta_con_chatgpt(
-    pregunta: str, 
-    contexto: Optional[ContextoFormulario] = None, 
-    info_clima: Optional[dict] = None,
-    historial_anterior: list = None,
-    destino_actual: Optional[str] = None
-) -> str:
+def generar_respuesta_con_chatgpt(pregunta: str, contexto: Optional[ContextoFormulario] = None, info_clima: Optional[dict] = None) -> str:
     """
     Función para generar respuestas especializadas usando ChatGPT con personalidad de experto en viajes.
-    Incluye historial de conversaciones anteriores para mantener contexto.
     """
     try:
-        historial_anterior = historial_anterior or []
-        
         # Construir el contexto del usuario si está disponible
         contexto_usuario = ""
         if contexto:
@@ -538,23 +476,6 @@ def generar_respuesta_con_chatgpt(
         IMPORTANTE: Incluye esta información del clima actual en tu respuesta, especialmente en la sección de 
         "ä CONSEJOS LOCALES" para dar recomendaciones sobre qué ropa llevar y actividades según el clima. 
         Si el clima es extremo (muy frío, muy caliente, lluvioso), destácalo en tus consejos."""
-        
-        # Construir contexto del historial de conversaciones
-        contexto_historial = ""
-        if historial_anterior and len(historial_anterior) > 0:
-            contexto_historial = "\n\nCONVERSACIONES ANTERIORES:\n"
-            for i, msg in enumerate(historial_anterior[-5:], 1):  # Últimas 5 conversaciones
-                contexto_historial += f"\n{i}. Usuario: {msg.get('pregunta', '')}\n"
-                contexto_historial += f"   ViajeIA: {msg.get('respuesta', '')[:200]}...\n"  # Primeros 200 caracteres
-            
-            contexto_historial += "\nIMPORTANTE: El usuario puede hacer preguntas de seguimiento sobre destinos o temas mencionados anteriormente. "
-            contexto_historial += "Si pregunta 'allí', 'ahí', 'ese lugar', se refiere al último destino mencionado en la conversación."
-        
-        # Si hay un destino actual pero no está en el contexto, mencionarlo
-        contexto_destino_actual = ""
-        if destino_actual and (not contexto or contexto.destino != destino_actual):
-            contexto_destino_actual = f"\n\nDESTINO ACTUAL DE LA CONVERSACIÓN: {destino_actual}\n"
-            contexto_destino_actual += "Si el usuario hace preguntas sobre 'allí', 'ahí', 'ese lugar', se refiere a este destino."
         
         # Crear el mensaje del sistema que define el rol y personalidad del asistente
         system_message = """Eres ViajeIA, un asistente virtual experto en viajes con más de 15 años de experiencia 
@@ -597,26 +518,15 @@ def generar_respuesta_con_chatgpt(
         - Personaliza cada sección según el destino, presupuesto y preferencias del usuario
         - Responde siempre en español
         - Si hay información del clima actual, inclúyela naturalmente en tus respuestas, especialmente en los consejos locales
-        - Si hay conversaciones anteriores, úsalas como contexto para entender referencias como "allí", "ahí", "ese lugar"
-        - Mantén coherencia con las respuestas anteriores
-        """ + contexto_usuario + info_clima_str + contexto_historial + contexto_destino_actual
-        
-        # Construir mensajes incluyendo historial si existe
-        messages = [{"role": "system", "content": system_message}]
-        
-        # Agregar historial anterior como mensajes (si existe)
-        if historial_anterior:
-            for msg in historial_anterior[-10:]:  # Últimos 10 mensajes para contexto
-                messages.append({"role": "user", "content": msg.get("pregunta", "")})
-                messages.append({"role": "assistant", "content": msg.get("respuesta", "")})
-        
-        # Agregar la pregunta actual
-        messages.append({"role": "user", "content": pregunta})
+        """ + contexto_usuario + info_clima_str
         
         # Llamar a la API de OpenAI
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=messages,
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": pregunta}
+            ],
             max_tokens=1000,  # Aumentado para respuestas estructuradas y detalladas
             temperature=0.8  # Aumentado para respuestas más creativas y con personalidad
         )
