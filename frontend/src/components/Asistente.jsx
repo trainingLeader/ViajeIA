@@ -19,6 +19,7 @@ import FormularioPreferencias from './FormularioPreferencias'
 import MensajeError from './MensajeError'
 import LimiteAlcanzado from './LimiteAlcanzado'
 import ContadorConsultas from './ContadorConsultas'
+import AlertaRespuestaCortada from './AlertaRespuestaCortada'
 import '../App.css'
 
 function Asistente() {
@@ -42,6 +43,10 @@ function Asistente() {
   
   // Estados para rate limiting
   const [limiteAlcanzado, setLimiteAlcanzado] = useState(null)
+  
+  // Estados para alerta de respuesta cortada
+  const [respuestaCortada, setRespuestaCortada] = useState(false)
+  const [tokensUsados, setTokensUsados] = useState(null)
 
   // Cargar favoritos desde localStorage al iniciar
   useEffect(() => {
@@ -260,6 +265,13 @@ function Asistente() {
       const nuevaRespuesta = response.data.respuesta
       setRespuesta(nuevaRespuesta)
       
+      // Detectar si la respuesta se cortó por límite de tokens
+      const respuestaCortada = response.data.respuesta_cortada || false
+      const tokensUsados = response.data.tokens_usados || null
+      
+      setRespuestaCortada(respuestaCortada)
+      setTokensUsados(tokensUsados)
+      
       // Extraer información de la consulta
       const infoConsulta = extraerInfoConsulta(preguntaActual)
       
@@ -410,6 +422,14 @@ function Asistente() {
           {respuesta && (
             <div className="response-area">
               <h2 className="response-title">Respuesta:</h2>
+              
+              {/* Alerta si la respuesta se cortó por límite de tokens */}
+              <AlertaRespuestaCortada
+                mostrar={respuestaCortada}
+                tokensUsados={tokensUsados}
+                onCerrar={() => setRespuestaCortada(false)}
+              />
+              
               <div className="response-content">
                 {respuesta}
               </div>

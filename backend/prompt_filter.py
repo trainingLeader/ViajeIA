@@ -7,6 +7,14 @@ Protege el asistente contra prompts maliciosos o fuera de contexto
 import re
 from typing import Tuple, List, Optional
 
+# Importar constantes de configuración
+try:
+    from config import MIN_QUESTION_LENGTH, MAX_QUESTION_LENGTH
+except ImportError:
+    # Valores por defecto si config.py no está disponible
+    MIN_QUESTION_LENGTH = 10
+    MAX_QUESTION_LENGTH = 500
+
 # Lista de palabras y frases peligrosas o sospechosas
 PALABRAS_PELIGROSAS = [
     # Intentos de jailbreak o manipulación del sistema
@@ -202,8 +210,8 @@ def validar_prompt(pregunta: str) -> Tuple[bool, Optional[str], Optional[List[st
     Returns:
         Tupla (es_valido, mensaje_error, palabras_peligrosas_encontradas)
     """
-    if not pregunta or len(pregunta.strip()) < 5:
-        return False, "La pregunta es muy corta. Por favor, proporciona más detalles.", None
+    if not pregunta or len(pregunta.strip()) < MIN_QUESTION_LENGTH:
+        return False, f"La pregunta debe tener al menos {MIN_QUESTION_LENGTH} caracteres. Por favor, proporciona más detalles.", None
     
     # 1. Verificar que sea sobre viajes
     es_viaje, razon = es_sobre_viajes(pregunta)
@@ -221,8 +229,10 @@ def validar_prompt(pregunta: str) -> Tuple[bool, Optional[str], Optional[List[st
         return False, mensaje, palabras_peligrosas
     
     # 3. Verificar longitud máxima (prevenir prompts muy largos que podrían contener código)
-    if len(pregunta) > 2000:
-        return False, "La pregunta es demasiado larga. Por favor, sé más conciso (máximo 2000 caracteres).", None
+    # Truncamiento automático a MAX_QUESTION_LENGTH caracteres si excede
+    if len(pregunta) > MAX_QUESTION_LENGTH:
+        pregunta = pregunta[:MAX_QUESTION_LENGTH]
+        # Se aplica truncamiento automático, continuar con validación
     
     # 4. Verificar que no sea principalmente código o comandos
     lineas_codigo = pregunta.count('\n')
@@ -237,13 +247,14 @@ def validar_prompt(pregunta: str) -> Tuple[bool, Optional[str], Optional[List[st
 
 def sanitizar_prompt(pregunta: str) -> str:
     """
-    Sanitiza un prompt removiendo caracteres peligrosos pero manteniendo el contenido válido
+    Sanitiza un prompt removiendo caracteres peligrosos pero manteniendo el contenido válido.
+    Aplica truncamiento automático a 500 caracteres si excede el límite.
     
     Args:
         pregunta: Pregunta a sanitizar
         
     Returns:
-        Pregunta sanitizada
+        Pregunta sanitizada (máximo 500 caracteres)
     """
     if not pregunta:
         return ""
@@ -251,9 +262,9 @@ def sanitizar_prompt(pregunta: str) -> str:
     # Remover caracteres de control
     pregunta = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', pregunta)
     
-    # Limitar longitud
-    if len(pregunta) > 2000:
-        pregunta = pregunta[:2000]
+    # Truncamiento automático a MAX_QUESTION_LENGTH caracteres
+    if len(pregunta) > MAX_QUESTION_LENGTH:
+        pregunta = pregunta[:MAX_QUESTION_LENGTH]
     
     # Remover múltiples espacios
     pregunta = re.sub(r'\s+', ' ', pregunta)

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request  # pyright: ignore[reportMissingImports]
 from fastapi.middleware.cors import CORSMiddleware  # pyright: ignore[reportMissingImports]
 from pydantic import BaseModel  # pyright: ignore[reportMissingImports]
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict
 import os
 import requests  # pyright: ignore[reportMissingImports]
 from datetime import datetime, timezone, timedelta
@@ -19,6 +19,14 @@ from openai_config import (
     estimar_tokens_mensajes,
     estimar_tokens
 )
+
+# Importar constantes de configuración
+try:
+    from config import SYSTEM_PROMPT, AI_TEMPERATURE
+except ImportError:
+    # Valores por defecto si config.py no está disponible
+    SYSTEM_PROMPT = None  # Se usará el prompt hardcodeado
+    AI_TEMPERATURE = 0.8
 
 # Cargar variables de entorno desde el archivo .env
 load_dotenv()
@@ -79,11 +87,41 @@ class RespuestaResponse(BaseModel):
     respuesta: str
     fotos: Optional[list[str]] = None
     info_destino: Optional[InfoDestino] = None
+    respuesta_cortada: Optional[bool] = False  # Indica si la respuesta se cortó por límite de tokens
+    tokens_usados: Optional[int] = None  # Tokens usados en la respuesta
 
 
 @app.get("/")
 async def root():
     return {"message": "ViajeIA API está funcionando"}
+
+
+@app.get("/api/health")
+async def health_check():
+    """
+    Endpoint de monitoreo de salud de la API
+    
+    Retorna el estado de la API y sus dependencias principales.
+    Útil para sistemas de monitoreo, load balancers y health checks.
+    """
+    health_status = {
+        "status": "healthy",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "version": "1.0.0",
+        "services": {
+            "api": "operational",
+            "openai": "operational" if openai_api_key else "not_configured",
+            "openweather": "operational" if openweather_api_key else "not_configured",
+            "unsplash": "operational" if unsplash_api_key else "not_configured"
+        }
+    }
+    
+    # Determinar estado general
+    if not openai_api_key:
+        health_status["status"] = "degraded"
+        health_status["message"] = "OpenAI API key no configurada"
+    
+    return health_status
 
 
 @app.get("/api/estadisticas")
@@ -518,9 +556,31 @@ def obtener_clima_actual(ciudad: str) -> Optional[dict]:
         return None
 
 
-def generar_respuesta_con_chatgpt(pregunta: str, contexto: Optional[ContextoFormulario] = None, info_clima: Optional[dict] = None) -> str:
+def generar_respuesta_con_chatgpt(
+    pregunta: str,
+    contexto: Optional[ContextoFormulario] = None,
+    info_clima: Optional[dict] = None,
+    modelo: Optional[str] = None,
+    max_tokens: Optional[int] = None,
+    historial: Optional[List[Dict[str, str]]] = None
+) -> dict:
     """
     Función para generar respuestas especializadas usando ChatGPT con personalidad de experto en viajes.
+    
+    Args:
+        pregunta: Pregunta del usuario
+        contexto: Contexto del formulario (destino, fecha, presupuesto, preferencias)
+        info_clima: Información del clima actual (opcional)
+        modelo: Modelo de OpenAI a usar (ej: "gpt-3.5-turbo", "gpt-4"). Si es None, usa la configuración por defecto.
+        max_tokens: Máximo número de tokens para la respuesta. Si es None, usa la configuración por defecto.
+        historial: Lista de mensajes anteriores en formato OpenAI [{"role": "user/assistant", "content": "..."}]
+                   Si se proporciona, se incluirá en el contexto limitado por tokens.
+    
+    Returns:
+        Diccionario con:
+        - respuesta: Respuesta generada por ChatGPT
+        - respuesta_cortada: True si la respuesta se cortó por límite de tokens
+        - tokens_usados: Número de tokens usados (si está disponible)
     """
     try:
         # Construir el contexto del usuario si está disponible
@@ -554,7 +614,17 @@ def generar_respuesta_con_chatgpt(pregunta: str, contexto: Optional[ContextoForm
         Si el clima es extremo (muy frío, muy caliente, lluvioso), destácalo en tus consejos."""
         
         # Crear el mensaje del sistema que define el rol y personalidad del asistente
-        system_message = """Eres ViajeIA, un asistente virtual experto en viajes con más de 15 años de experiencia 
+        # Usar SYSTEM_PROMPT de configuración si está disponible, sino usar el por defecto
+        system_prompt_env = os.getenv("SYSTEM_PROMPT", "")
+        if system_prompt_env:
+            # Si SYSTEM_PROMPT está configurado en .env, usarlo
+            system_message_base = system_prompt_env
+        elif SYSTEM_PROMPT and SYSTEM_PROMPT != os.getenv("SYSTEM_PROMPT", ""):
+            # Si SYSTEM_PROMPT está configurado en config.py, usarlo
+            system_message_base = SYSTEM_PROMPT
+        else:
+            # Usar prompt por defecto
+            system_message_base = """Eres ViajeIA, un asistente virtual experto en viajes con más de 15 años de experiencia 
         ayudando a viajeros a crear experiencias inolvidables. Tienes una personalidad entusiasta, amigable y 
         apasionada por los viajes.
 
@@ -594,7 +664,16 @@ def generar_respuesta_con_chatgpt(pregunta: str, contexto: Optional[ContextoForm
         - Personaliza cada sección según el destino, presupuesto y preferencias del usuario
         - Responde siempre en español
         - Si hay información del clima actual, inclúyela naturalmente en tus respuestas, especialmente en los consejos locales
-        """ + contexto_usuario + info_clima_str
+        """
+        
+        system_message = system_message_base + contexto_usuario + info_clima_str
+        
+        # Obtener configuración (usando valores por defecto si no se especifican)
+        config = obtener_configuracion_openai(modelo=modelo, max_tokens=max_tokens)
+        modelo_usar = config["modelo"]
+        max_tokens_usar = config["max_tokens"]
+        
+        logger.info(f"Usando modelo: {modelo_usar}, max_tokens: {max_tokens_usar}")
         
         # Construir lista de mensajes
         mensajes = [
@@ -644,13 +723,36 @@ def generar_respuesta_con_chatgpt(pregunta: str, contexto: Optional[ContextoForm
             model=modelo_usar,
             messages=mensajes,
             max_tokens=max_tokens_usar,
-            temperature=0.8  # Aumentado para respuestas más creativas y con personalidad
+            temperature=AI_TEMPERATURE  # Configurable vía AI_TEMPERATURE en .env
         )
         
         # Extraer la respuesta generada
         respuesta = response.choices[0].message.content
-        return respuesta
+        
+        # Detectar si la respuesta se cortó por límite de tokens
+        finish_reason = response.choices[0].finish_reason
+        respuesta_cortada = finish_reason == "length"  # "length" significa que se cortó por max_tokens
+        
+        # Obtener información de uso de tokens
+        tokens_usados = response.usage.total_tokens if hasattr(response, 'usage') and response.usage else None
+        
+        logger.info(
+            f"Respuesta generada. Cortada: {respuesta_cortada}, "
+            f"Finish reason: {finish_reason}, Tokens usados: {tokens_usados}"
+        )
+        
+        # Retornar respuesta con información adicional
+        return {
+            "respuesta": respuesta,
+            "respuesta_cortada": respuesta_cortada,
+            "tokens_usados": tokens_usados
+        }
     
     except Exception as e:
         # Si hay un error, devolver un mensaje amigable con personalidad
-        return f"¡Ups! 😅 Hubo un pequeño problema técnico mientras procesaba tu solicitud. Por favor, intenta de nuevo en un momento. Si el problema persiste, verifica tu conexión a internet. Error: {str(e)}"
+        error_msg = f"¡Ups! 😅 Hubo un pequeño problema técnico mientras procesaba tu solicitud. Por favor, intenta de nuevo en un momento. Si el problema persiste, verifica tu conexión a internet. Error: {str(e)}"
+        return {
+            "respuesta": error_msg,
+            "respuesta_cortada": False,
+            "tokens_usados": None
+        }

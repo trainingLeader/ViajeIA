@@ -9,6 +9,14 @@ import html
 from typing import Optional, Tuple
 from fastapi import HTTPException
 
+# Importar constantes de configuración
+try:
+    from config import MIN_QUESTION_LENGTH, MAX_QUESTION_LENGTH
+except ImportError:
+    # Valores por defecto si config.py no está disponible
+    MIN_QUESTION_LENGTH = 10
+    MAX_QUESTION_LENGTH = 500
+
 
 def sanitizar_texto(texto: str, max_length: int = 1000) -> str:
     """
@@ -82,19 +90,19 @@ def validar_pregunta(pregunta: str) -> Tuple[bool, Optional[str], Optional[str]]
     pregunta_trim = pregunta.strip()
     
     # Verificar longitud mínima
-    if len(pregunta_trim) < 5:
-        return False, "La pregunta debe tener al menos 5 caracteres", None
+    if len(pregunta_trim) < MIN_QUESTION_LENGTH:
+        return False, f"La pregunta debe tener al menos {MIN_QUESTION_LENGTH} caracteres", None
     
-    # Verificar longitud máxima
-    if len(pregunta_trim) > 1000:
-        return False, "La pregunta no puede exceder 1000 caracteres", None
+    # Truncamiento automático si excede MAX_QUESTION_LENGTH caracteres
+    if len(pregunta_trim) > MAX_QUESTION_LENGTH:
+        pregunta_trim = pregunta_trim[:MAX_QUESTION_LENGTH]
     
     # Verificar que no sea solo espacios o caracteres especiales
     if not re.search(r'[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]', pregunta_trim):
         return False, "La pregunta debe contener texto válido", None
     
-    # Sanitizar la pregunta
-    pregunta_sanitizada = sanitizar_texto(pregunta_trim, max_length=1000)
+    # Sanitizar la pregunta (con truncamiento automático si excede MAX_QUESTION_LENGTH caracteres)
+    pregunta_sanitizada = sanitizar_texto(pregunta_trim, max_length=MAX_QUESTION_LENGTH)
     
     return True, None, pregunta_sanitizada
 

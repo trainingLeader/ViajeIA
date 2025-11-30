@@ -1,0 +1,146 @@
+/* Estilos para la alerta de respuesta cortada */
+
+.alerta-respuesta-cortada {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+  border-left: 4px solid #ffc107;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 20px 0;
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease-out;
+}
+
+.alerta-respuesta-cortada.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.alerta-contenido {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  position: relative;
+}
+
+.alerta-icono {
+  font-size: 2rem;
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.alerta-texto {
+  flex: 1;
+}
+
+.alerta-titulo {
+  margin: 0 0 8px 0;
+  color: #856404;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.alerta-mensaje {
+  margin: 0 0 10px 0;
+  color: #856404;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.alerta-tokens {
+  margin: 8px 0;
+  color: #856404;
+  font-size: 0.9rem;
+}
+
+.alerta-tokens strong {
+  color: #664d03;
+  font-weight: 600;
+}
+
+.alerta-sugerencia {
+  margin: 10px 0 0 0;
+  color: #856404;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 6px;
+}
+
+.alerta-sugerencia strong {
+  color: #664d03;
+}
+
+.alerta-boton-cerrar {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #ffc107;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 1.5rem;
+  color: #856404;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  line-height: 1;
+  padding: 0;
+}
+
+.alerta-boton-cerrar:hover {
+  background: #ffb300;
+  transform: scale(1.1);
+}
+
+.alerta-boton-cerrar:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+  .alerta-respuesta-cortada {
+    padding: 14px 16px;
+    margin: 15px 0;
+  }
+
+  .alerta-contenido {
+    gap: 12px;
+  }
+
+  .alerta-icono {
+    font-size: 1.5rem;
+  }
+
+  .alerta-titulo {
+    font-size: 1rem;
+  }
+
+  .alerta-mensaje,
+  .alerta-sugerencia {
+    font-size: 0.85rem;
+  }
+
+  .alerta-boton-cerrar {
+    width: 24px;
+    height: 24px;
+    font-size: 1.2rem;
+    top: -3px;
+    right: -3px;
+  }
+}
+
